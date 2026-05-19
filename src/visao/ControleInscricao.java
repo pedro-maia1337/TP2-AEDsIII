@@ -2,46 +2,49 @@ package visao;
 
 import arquivo.ArquivoCurso;
 import arquivo.ArquivoInscricao;
+import arquivo.ArquivoUsuario;
+import auxiliares.Teclado;
 import entidades.Curso;
 import entidades.Inscricao;
 import entidades.Usuario;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.Comparator;
 
 public class ControleInscricao {
 
     private ArquivoCurso arquivoCurso;
     private ArquivoInscricao arquivoInscricao;
+    private ArquivoUsuario arquivoUsuario;
     private VisaoCurso visao;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-    // Quantidade de cursos exibidos por página na listagem
     private static final int ITENS_POR_PAGINA = 10;
-
-    private static final Scanner console = new Scanner(System.in);
 
     public ControleInscricao() throws Exception {
         arquivoCurso     = new ArquivoCurso();
         arquivoInscricao = new ArquivoInscricao();
+        arquivoUsuario   = new ArquivoUsuario();
         visao            = new VisaoCurso();
     }
 
-    // Menu principal de inscrições
+    // ─────────────────────────── MENU PRINCIPAL ──────────────────────────────
+
     public void menu(Usuario usuarioLogado) {
         String opcao;
         do {
             try {
-                exibirMenu(usuarioLogado);
-                opcao = console.nextLine().trim().toUpperCase();
+                ArrayList<Inscricao> minhasInscricoes =
+                    arquivoInscricao.readByUsuario(usuarioLogado.getId());
+                exibirMenu(usuarioLogado, minhasInscricoes);
+                opcao = Teclado.lerLinha().trim().toUpperCase();
 
                 switch (opcao) {
                     case "A":
                         buscarPorCodigo(usuarioLogado);
                         break;
                     case "B":
-                        System.out.println("\n[A ser implementado]");
+                        System.out.println("\n[A ser implementado no TP3]");
                         break;
                     case "C":
                         listarTodosCursos(usuarioLogado);
@@ -50,8 +53,13 @@ public class ControleInscricao {
                         return;
                     default:
                         try {
-                            Integer.parseInt(opcao);
-                            System.out.println("\n[A ser implementado]");
+                            int num = Integer.parseInt(opcao);
+                            if (num >= 1 && num <= minhasInscricoes.size()) {
+                                telaGerenciarInscricao(
+                                    minhasInscricoes.get(num - 1), usuarioLogado);
+                            } else {
+                                System.out.println("Opção inválida!");
+                            }
                         } catch (NumberFormatException e) {
                             System.out.println("Opção inválida!");
                         }
@@ -63,33 +71,26 @@ public class ControleInscricao {
         } while (true);
     }
 
-
-    // Exibição do menu principal de inscrições
-    private void exibirMenu(Usuario usuarioLogado) throws Exception {
+    private void exibirMenu(Usuario usuarioLogado, ArrayList<Inscricao> inscricoes) {
         System.out.println("\n\nEntrePares 1.0");
         System.out.println("--------------");
         System.out.println("> Início > Minhas inscrições");
         System.out.println("\nINSCRIÇÕES");
-
-        // Busca inscrições do usuário e os cursos associados
-        ArrayList<Inscricao> inscricoes = arquivoInscricao.readByUsuario(usuarioLogado.getId());
 
         if (inscricoes.isEmpty()) {
             System.out.println("Você não possui inscrições ativas.");
         } else {
             for (int i = 0; i < inscricoes.size(); i++) {
                 Inscricao insc = inscricoes.get(i);
-                Curso curso = arquivoCurso.read(insc.getIdCurso());
-
-                if (curso == null) continue; // curso removido, ignora
-
-                String labelStatus = getLabelStatus(curso);
-                System.out.printf("(%d) %s - %s%s%n",
+                try {
+                    Curso curso = arquivoCurso.read(insc.getIdCurso());
+                    if (curso == null) continue;
+                    System.out.printf("(%d) %s - %s%s%n",
                         i + 1,
                         curso.getNome(),
                         curso.getDataInicio().format(FMT),
-                        labelStatus
-                );
+                        getLabelStatus(curso));
+                } catch (Exception e) { /* ignora curso removido */ }
             }
         }
 
@@ -100,86 +101,90 @@ public class ControleInscricao {
         System.out.print("\nOpção: ");
     }
 
-    // Busca por código NanoID  (opção A)
+    // ─────────────────────────── BUSCA POR CÓDIGO ────────────────────────────
 
     private void buscarPorCodigo(Usuario usuarioLogado) {
         System.out.println("\nBUSCA POR CÓDIGO");
         System.out.println("================");
         System.out.print("Informe o código do curso (vazio para cancelar): ");
-
-        String codigo = console.nextLine().trim();
-
+        String codigo = Teclado.lerLinha().trim();
         if (codigo.isEmpty()) {
             System.out.println("Operação cancelada.");
             return;
         }
 
         try {
-            // Busca via HashExtensivel em ArquivoCurso — O(1)
             Curso curso = arquivoCurso.readByCodigo(codigo);
-
             if (curso == null) {
                 System.out.println("Nenhum curso encontrado com o código: " + codigo);
                 return;
             }
-
-            // Exibe os dados do curso encontrado
-            visao.mostraCurso(curso);
-
-            System.out.println("\n[Inscrição a ser implementada]");
-
+            // Busca por código vai direto para o detalhe (sem tela de lista)
+            telaDetalheCurso(curso, usuarioLogado,
+                "> Início > Minhas inscrições > " + curso.getNome());
         } catch (Exception e) {
             visao.mensagemErro("Erro ao buscar curso: " + e.getMessage());
         }
     }
 
-    // Listagem paginada de todos os cursos  (opção C)
+    // ─────────────────────────── LISTAGEM PAGINADA ───────────────────────────
+
     private void listarTodosCursos(Usuario usuarioLogado) {
         try {
-            // readAll() retorna todos os cursos ordenados por nome via índice B+
             ArrayList<Curso> todos = arquivoCurso.readAll();
 
-            // Remove cursos criados pelo próprio usuário logado
-            ArrayList<Curso> terceiros = new ArrayList<>();
-            for (Curso curso : todos) {
-                if (curso.getIdUsuario() != usuarioLogado.getId()) {
-                    terceiros.add(curso);
+            // Ordena por data de início (conforme especificação)
+            todos.sort(Comparator.comparing(Curso::getDataInicio));
+
+            // Remove cursos do próprio usuário
+            ArrayList<Curso> disponiveis = new ArrayList<>();
+            for (Curso c : todos) {
+                if (c.getIdUsuario() != usuarioLogado.getId()) {
+                    disponiveis.add(c);
                 }
             }
 
-            if (terceiros.isEmpty()) {
+            if (disponiveis.isEmpty()) {
                 System.out.println("\nNenhum curso disponível no momento.");
                 return;
             }
 
-            int totalPaginas = (int) Math.ceil((double) terceiros.size() / ITENS_POR_PAGINA);
+            int totalPaginas = (int) Math.ceil((double) disponiveis.size() / ITENS_POR_PAGINA);
             int paginaAtual  = 1;
 
             String opcao;
             do {
-                exibirPaginaCursos(terceiros, paginaAtual, totalPaginas);
-                opcao = console.nextLine().trim().toUpperCase();
+                exibirPaginaCursos(disponiveis, paginaAtual, totalPaginas);
+                opcao = Teclado.lerLinha().trim().toUpperCase();
 
-                switch (opcao) {
-                    case "A": // Página anterior
-                        if (paginaAtual > 1) {
-                            paginaAtual--;
+                int inicio       = (paginaAtual - 1) * ITENS_POR_PAGINA;
+                int fim          = Math.min(inicio + ITENS_POR_PAGINA, disponiveis.size());
+                int qtdNaPagina  = fim - inicio;
+
+                if (opcao.equals("A")) {
+                    if (paginaAtual > 1) paginaAtual--;
+                    else System.out.println("Você já está na primeira página.");
+                } else if (opcao.equals("B")) {
+                    if (paginaAtual < totalPaginas) paginaAtual++;
+                    else System.out.println("Você já está na última página.");
+                } else if (opcao.equals("R")) {
+                    return;
+                } else {
+                    try {
+                        int num = Integer.parseInt(opcao);
+                        // (1)-(9) → índices 0-8; (0) → índice 9
+                        int idxNaPagina = (num == 0) ? 9 : num - 1;
+                        if (idxNaPagina >= 0 && idxNaPagina < qtdNaPagina) {
+                            Curso selecionado = disponiveis.get(inicio + idxNaPagina);
+                            telaDetalheCurso(selecionado, usuarioLogado,
+                                "> Início > Minhas inscrições > Lista de cursos > "
+                                + selecionado.getNome());
                         } else {
-                            System.out.println("Você já está na primeira página.");
+                            System.out.println("Opção inválida!");
                         }
-                        break;
-                    case "B": // Próxima página
-                        if (paginaAtual < totalPaginas) {
-                            paginaAtual++;
-                        } else {
-                            System.out.println("Você já está na última página.");
-                        }
-                        break;
-                    case "R":
-                        return;
-                    default:
+                    } catch (NumberFormatException e) {
                         System.out.println("Opção inválida!");
-                        break;
+                    }
                 }
             } while (true);
 
@@ -188,49 +193,159 @@ public class ControleInscricao {
         }
     }
 
-    // Exibe uma página da listagem de cursos
     private void exibirPaginaCursos(ArrayList<Curso> cursos, int paginaAtual, int totalPaginas) {
         System.out.println("\n\nEntrePares 1.0");
         System.out.println("--------------");
         System.out.println("> Início > Minhas inscrições > Lista de cursos");
-        System.out.printf("Página %d de %d%n", paginaAtual, totalPaginas);
+        System.out.printf("%nPágina %d de %d%n%n", paginaAtual, totalPaginas);
 
-        // Calcula os índices de início e fim da página atual
         int inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
         int fim    = Math.min(inicio + ITENS_POR_PAGINA, cursos.size());
 
         for (int i = inicio; i < fim; i++) {
             Curso curso = cursos.get(i);
-
-            // O décimo item da página usa (0)
-            int numeroExibido = (i - inicio + 1) % ITENS_POR_PAGINA;
-
+            int numeroExibido = (i - inicio + 1) % ITENS_POR_PAGINA; // 1-9, então 0
             System.out.printf("(%d) %s - %s%n",
-                    numeroExibido,
-                    curso.getNome(),
-                    curso.getDataInicio().format(FMT)
-            );
+                numeroExibido, curso.getNome(), curso.getDataInicio().format(FMT));
         }
 
-        // Exibe opções de navegação; omite as que não se aplicam
         System.out.println();
-        if (paginaAtual > 1) {
-            System.out.println("(A) Página anterior");
-        }
-        if (paginaAtual < totalPaginas) {
-            System.out.println("(B) Próxima página");
-        }
-        System.out.println("(R) Retornar ao menu anterior");
+        if (paginaAtual > 1)           System.out.println("(A) Página anterior");
+        if (paginaAtual < totalPaginas) System.out.println("(B) Próxima página");
+        System.out.println("\n(R) Retornar ao menu anterior");
         System.out.print("\nOpção: ");
     }
 
-    // Retorna o label de status para exibição na lista de inscrições do usuário
+    // ────────────────────── TELA DE DETALHE DO CURSO (inscrição) ─────────────
+
+    private void telaDetalheCurso(Curso curso, Usuario usuarioLogado, String breadcrumb) {
+        String opcao;
+        do {
+            try {
+                String nomeAutor = obterNomeAutor(curso.getIdUsuario());
+
+                System.out.println("\n\nEntrePares 1.0");
+                System.out.println("--------------");
+                System.out.println(breadcrumb);
+                System.out.println();
+                visao.mostraCursoInscricao(curso, nomeAutor);
+
+                boolean jaInscrito  = arquivoInscricao.existeInscricao(
+                                          usuarioLogado.getId(), curso.getId());
+                boolean cursoAberto = curso.getEstado() == Curso.ATIVO_INSCRICOES;
+                boolean ehProprietario = curso.getIdUsuario() == usuarioLogado.getId();
+                boolean podeInscrever = cursoAberto && !ehProprietario && !jaInscrito;
+
+                System.out.println();
+                if (podeInscrever) {
+                    System.out.println("(A) Fazer minha inscrição no curso");
+                } else if (jaInscrito) {
+                    System.out.println("Você já está inscrito neste curso.");
+                } else if (ehProprietario) {
+                    System.out.println("Este é um curso que você criou.");
+                } else {
+                    System.out.println("Este curso não está aceitando novas inscrições.");
+                }
+
+                System.out.println("\n(R) Retornar ao menu anterior");
+                System.out.print("\nOpção: ");
+                opcao = Teclado.lerLinha().trim().toUpperCase();
+
+                if (opcao.equals("A") && podeInscrever) {
+                    realizarInscricao(curso, usuarioLogado);
+                    return;
+                } else if (opcao.equals("R")) {
+                    return;
+                } else if (!opcao.equals("A")) {
+                    System.out.println("Opção inválida!");
+                }
+                // Se "A" mas não podeInscrever → repete mostrando mensagem
+            } catch (Exception e) {
+                visao.mensagemErro("Erro: " + e.getMessage());
+                return;
+            }
+        } while (true);
+    }
+
+    private void realizarInscricao(Curso curso, Usuario usuarioLogado) {
+        try {
+            arquivoInscricao.create(new Inscricao(usuarioLogado.getId(), curso.getId()));
+            visao.mensagemSucesso("Inscrição no curso \"" + curso.getNome() + "\"");
+        } catch (Exception e) {
+            visao.mensagemErro("Não foi possível realizar a inscrição: " + e.getMessage());
+        }
+    }
+
+    // ────────────────── TELA DE GERENCIAMENTO DE INSCRIÇÃO PRÓPRIA ───────────
+
+    private void telaGerenciarInscricao(Inscricao insc, Usuario usuarioLogado) {
+        String opcao;
+        do {
+            try {
+                Curso curso = arquivoCurso.read(insc.getIdCurso());
+                if (curso == null) {
+                    System.out.println("Curso não encontrado.");
+                    return;
+                }
+                String nomeAutor = obterNomeAutor(curso.getIdUsuario());
+
+                System.out.println("\n\nEntrePares 1.0");
+                System.out.println("--------------");
+                System.out.println("> Início > Minhas inscrições > " + curso.getNome());
+                System.out.println();
+                visao.mostraCursoInscricao(curso, nomeAutor);
+
+                System.out.println("\n(A) Cancelar minha inscrição no curso");
+                System.out.println("\n(R) Retornar ao menu anterior");
+                System.out.print("\nOpção: ");
+                opcao = Teclado.lerLinha().trim().toUpperCase();
+
+                if (opcao.equals("A")) {
+                    cancelarInscricaoPropria(insc, curso);
+                    return;
+                } else if (opcao.equals("R")) {
+                    return;
+                } else {
+                    System.out.println("Opção inválida!");
+                }
+            } catch (Exception e) {
+                visao.mensagemErro("Erro: " + e.getMessage());
+                return;
+            }
+        } while (true);
+    }
+
+    private void cancelarInscricaoPropria(Inscricao insc, Curso curso) {
+        try {
+            insc.setEstado(Inscricao.CANCELADA);
+            if (arquivoInscricao.update(insc)) {
+                visao.mensagemSucesso("Inscrição no curso \""
+                    + curso.getNome() + "\" cancelada");
+            } else {
+                visao.mensagemErro("Não foi possível cancelar a inscrição");
+            }
+        } catch (Exception e) {
+            visao.mensagemErro("Erro ao cancelar inscrição: " + e.getMessage());
+        }
+    }
+
+    // ─────────────────────────── AUXILIARES ──────────────────────────────────
+
+    private String obterNomeAutor(int idUsuario) {
+        try {
+            Usuario autor = arquivoUsuario.read(idUsuario);
+            return (autor != null) ? autor.getNome() : "(desconhecido)";
+        } catch (Exception e) {
+            return "(desconhecido)";
+        }
+    }
+
     private String getLabelStatus(Curso curso) {
         switch (curso.getEstado()) {
             case Curso.ATIVO_SEM_INSCRICOES: return " (INSCRIÇÕES ENCERRADAS)";
             case Curso.CONCLUIDO:            return " (CONCLUÍDO)";
             case Curso.CANCELADO:            return " (CANCELADO)";
-            default:                         return ""; // ATIVO_INSCRICOES não exibe label extra
+            default:                         return "";
         }
     }
 }

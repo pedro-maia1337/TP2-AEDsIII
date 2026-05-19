@@ -4,6 +4,8 @@ import java.util.Scanner;
 import java.util.ArrayList;
 import arquivo.ArquivoUsuario;
 import arquivo.ArquivoCurso;
+import arquivo.ArquivoInscricao;
+import auxiliares.Teclado;
 import entidades.Usuario;
 import entidades.Curso;
 
@@ -13,11 +15,12 @@ public class MenuUsuarios {
 
     private ArquivoUsuario arqUsuarios;
     private ArquivoCurso arqCursos;
-    private static final Scanner console = new Scanner(System.in);
+    private ArquivoInscricao arqInscricoes;
 
     public MenuUsuarios() throws Exception {
-        arqUsuarios = new ArquivoUsuario();
-        arqCursos = new ArquivoCurso();
+        arqUsuarios  = new ArquivoUsuario();
+        arqCursos    = new ArquivoCurso();
+        arqInscricoes = new ArquivoInscricao();
     }
 
     public Usuario telaInicial() {
@@ -30,7 +33,7 @@ public class MenuUsuarios {
             System.out.println("(C) Esqueci minha senha");
             System.out.println("\n(S) Sair");
             System.out.print("\nOpção: ");
-            opcao = console.nextLine().trim().toUpperCase();
+            opcao = Teclado.lerLinha().trim().toUpperCase();
 
             switch (opcao) {
                 case "A":
@@ -64,7 +67,7 @@ public class MenuUsuarios {
             System.out.println("(3) Excluir minha conta");
             System.out.println("\n(0) Voltar");
             System.out.print("\nOpção: ");
-            opcao = console.nextLine().trim();
+            opcao = Teclado.lerLinha().trim();
 
             switch (opcao) {
                 case "1":
@@ -89,11 +92,11 @@ public class MenuUsuarios {
     private Usuario login() {
         System.out.println("\nLogin");
         System.out.print("E-mail: ");
-        String email = console.nextLine().trim();
+        String email = Teclado.lerLinha().trim();
         if (email.isEmpty()) return null;
 
         System.out.print("Senha: ");
-        String senha = console.nextLine();
+        String senha = Teclado.lerLinha();
 
         try {
             Usuario u = arqUsuarios.readByEmail(email);
@@ -133,15 +136,15 @@ public class MenuUsuarios {
         if (senha == null) return;
 
         System.out.print("Pergunta secreta: ");
-        String pergunta = console.nextLine().trim();
+        String pergunta = Teclado.lerLinha().trim();
         if (pergunta.isEmpty()) { System.out.println("Cancelado."); return; }
 
         System.out.print("Resposta secreta: ");
-        String resposta = console.nextLine().trim();
+        String resposta = Teclado.lerLinha().trim();
         if (resposta.isEmpty()) { System.out.println("Cancelado."); return; }
 
         System.out.print("\nConfirma o cadastro? (S/N) ");
-        if (!console.nextLine().trim().equalsIgnoreCase("S")) {
+        if (!Teclado.lerLinha().trim().equalsIgnoreCase("S")) {
             System.out.println("Cadastro cancelado.");
             return;
         }
@@ -164,35 +167,35 @@ public class MenuUsuarios {
             System.out.println("(Deixe em branco para manter o valor atual)");
 
             System.out.print("\nNovo nome [" + u.getNome() + "]: ");
-            String novoNome = console.nextLine().trim();
+            String novoNome = Teclado.lerLinha().trim();
             if (!novoNome.isEmpty()) {
                 if (novoNome.length() < 4) { System.out.println("Nome deve ter mín. 4 caracteres. Mantido."); }
                 else u.setNome(novoNome);
             }
 
             System.out.print("Novo e-mail [" + u.getEmail() + "]: ");
-            String novoEmail = console.nextLine().trim();
+            String novoEmail = Teclado.lerLinha().trim();
             if (!novoEmail.isEmpty()) u.setEmail(novoEmail);
 
             System.out.print("Nova senha (vazio=manter): ");
-            String novaSenha = console.nextLine();
+            String novaSenha = Teclado.lerLinha();
             if (!novaSenha.isEmpty()) {
                 if (novaSenha.length() < 6) System.out.println("Senha curta demais. Mantida.");
                 else u.setSenha(novaSenha);
             }
 
             System.out.print("Nova pergunta secreta (vazio=manter): ");
-            String novaPergunta = console.nextLine().trim();
+            String novaPergunta = Teclado.lerLinha().trim();
             if (!novaPergunta.isEmpty()) {
                 System.out.print("Nova resposta secreta: ");
-                String novaResposta = console.nextLine().trim();
+                String novaResposta = Teclado.lerLinha().trim();
                 if (novaResposta.isEmpty()) { System.out.println("Resposta não pode ser vazia. Cancelado."); return; }
                 u.setPerguntaSecreta(novaPergunta);
                 u.setRespostaSecreta(novaResposta);
             }
 
             System.out.print("\nConfirma as alterações? (S/N) ");
-            if (!console.nextLine().trim().equalsIgnoreCase("S")) {
+            if (!Teclado.lerLinha().trim().equalsIgnoreCase("S")) {
                 System.out.println("Alteração cancelada.");
                 return;
             }
@@ -234,7 +237,7 @@ public class MenuUsuarios {
             }
             
             System.out.print("Confirma a exclusão da sua conta? (S/N) ");
-            if (!console.nextLine().trim().equalsIgnoreCase("S")) {
+            if (!Teclado.lerLinha().trim().equalsIgnoreCase("S")) {
                 System.out.println("Exclusão cancelada.");
                 return false;
             }
@@ -245,7 +248,10 @@ public class MenuUsuarios {
                     arqCursos.delete(curso.getId());
                 }
             }
-            
+
+            // Cancela todas as inscrições ativas do usuário
+            arqInscricoes.cancelarInscricoesPorUsuario(usuarioLogado.getId());
+
             // Remove o usuário
             if (arqUsuarios.delete(usuarioLogado.getId())) {
                 System.out.println("Conta excluída. Até logo!");
@@ -261,7 +267,7 @@ public class MenuUsuarios {
     private void recuperarSenha() {
         System.out.println("\nRecuperação de senha");
         System.out.print("E-mail cadastrado: ");
-        String email = console.nextLine().trim();
+        String email = Teclado.lerLinha().trim();
 
         try {
             Usuario u = arqUsuarios.readByEmail(email);
@@ -269,16 +275,16 @@ public class MenuUsuarios {
 
             System.out.println("Pergunta: " + u.getPerguntaSecreta());
             System.out.print("Resposta: ");
-            String resposta = console.nextLine();
+            String resposta = Teclado.lerLinha();
 
             if (!u.verificaResposta(resposta)) { System.out.println("Resposta incorreta."); return; }
 
             System.out.print("Nova senha (mín. 6 caracteres): ");
-            String nova = console.nextLine();
+            String nova = Teclado.lerLinha();
             if (nova.length() < 6) { System.out.println("Senha muito curta."); return; }
 
             System.out.print("Confirme a nova senha: ");
-            if (!nova.equals(console.nextLine())) { System.out.println("Senhas não conferem."); return; }
+            if (!nova.equals(Teclado.lerLinha())) { System.out.println("Senhas não conferem."); return; }
 
             u.setSenha(nova);
             if (arqUsuarios.update(u)) System.out.println("Senha alterada com sucesso!");
@@ -302,7 +308,7 @@ public class MenuUsuarios {
     private String leNome() {
         while (true) {
             System.out.print("Nome (mín. 4 letras, vazio=cancelar): ");
-            String v = console.nextLine().trim();
+            String v = Teclado.lerLinha().trim();
             if (v.isEmpty()) return null;
             if (v.length() >= 4) return v;
             System.out.println("Nome deve ter pelo menos 4 caracteres.");
@@ -312,7 +318,7 @@ public class MenuUsuarios {
     private String leEmail() {
         while (true) {
             System.out.print("E-mail (vazio=cancelar): ");
-            String v = console.nextLine().trim();
+            String v = Teclado.lerLinha().trim();
             if (v.isEmpty()) return null;
             if (v.contains("@") && v.contains(".")) return v.toLowerCase();
             System.out.println("E-mail inválido.");
@@ -322,7 +328,7 @@ public class MenuUsuarios {
     private String leSenha() {
         while (true) {
             System.out.print("Senha (mín. 6 caracteres): ");
-            String v = console.nextLine();
+            String v = Teclado.lerLinha();
             if (v.isEmpty()) { System.out.println("Cancelado."); return null; }
             if (v.length() >= 6) return v;
             System.out.println("Senha deve ter pelo menos 6 caracteres.");

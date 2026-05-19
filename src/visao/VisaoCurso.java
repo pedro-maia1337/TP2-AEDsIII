@@ -1,14 +1,12 @@
 package visao;
 
+import auxiliares.Teclado;
 import entidades.Curso;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Scanner;
 
 public class VisaoCurso {
-
-    private Scanner scanner = new Scanner(System.in);
 
     public Curso leCurso(int idUsuario) {
         System.out.println("\nCADASTRO DE NOVO CURSO");
@@ -18,7 +16,7 @@ public class VisaoCurso {
         String nome;
         do {
             System.out.print("Nome do curso: ");
-            nome = scanner.nextLine().trim();
+            nome = Teclado.lerLinha().trim();
             if (nome.isEmpty()) {
                 System.out.println("Nome não pode ser vazio!");
             }
@@ -29,7 +27,7 @@ public class VisaoCurso {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         do {
             System.out.print("Data de início (dd/MM/yyyy): ");
-            String dataStr = scanner.nextLine().trim();
+            String dataStr = Teclado.lerLinha().trim();
             try {
                 dataInicio = LocalDate.parse(dataStr, formatter);
                 if (dataInicio.isBefore(LocalDate.now())) {
@@ -45,7 +43,7 @@ public class VisaoCurso {
         String descricao;
         do {
             System.out.println("Descrição do curso (programa, dias, locais, etc.):");
-            descricao = scanner.nextLine().trim();
+            descricao = Teclado.lerLinha().trim();
             if (descricao.isEmpty()) {
                 System.out.println("Descrição não pode ser vazia!");
             }
@@ -60,7 +58,7 @@ public class VisaoCurso {
         
         // Nome do curso
         System.out.print("Nome do curso [" + curso.getNome() + "]: ");
-        String nome = scanner.nextLine().trim();
+        String nome = Teclado.lerLinha().trim();
         if (!nome.isEmpty()) {
             curso.setNome(nome);
         }
@@ -68,7 +66,7 @@ public class VisaoCurso {
         // Data de início
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         System.out.print("Data de início [" + curso.getDataInicio().format(formatter) + "]: ");
-        String dataStr = scanner.nextLine().trim();
+        String dataStr = Teclado.lerLinha().trim();
         if (!dataStr.isEmpty()) {
             try {
                 LocalDate novaData = LocalDate.parse(dataStr, formatter);
@@ -84,7 +82,7 @@ public class VisaoCurso {
         
         // Descrição
         System.out.println("Descrição do curso [" + curso.getDescricao() + "]:");
-        String descricao = scanner.nextLine().trim();
+        String descricao = Teclado.lerLinha().trim();
         if (!descricao.isEmpty()) {
             curso.setDescricao(descricao);
         }
@@ -92,6 +90,7 @@ public class VisaoCurso {
         return curso;
     }
     
+    // Exibe os dados do curso no formato da visão do PROPRIETÁRIO (Meus Cursos)
     public void mostraCurso(Curso curso) {
         System.out.println("\n" + "=".repeat(50));
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -118,25 +117,35 @@ public class VisaoCurso {
         }
         System.out.println("=".repeat(50));
     }
+
+    // Exibe os dados do curso no formato da visão de INSCRIÇÃO (Minhas inscrições)
+    public void mostraCursoInscricao(Curso curso, String nomeAutor) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        System.out.println("CÓDIGO........: " + curso.getCodigoCompartilhavel());
+        System.out.println("CURSO.........: " + curso.getNome());
+        System.out.println("AUTOR.........: " + nomeAutor);
+        System.out.println("DESCRIÇÃO.....: " + curso.getDescricao());
+        System.out.println("DATA DE INÍCIO: " + curso.getDataInicio().format(formatter));
+    }
     
     public boolean confirmaExclusao(Curso curso) {
         System.out.println("\nTem certeza que deseja excluir o curso '" + curso.getNome() + "'? (s/N): ");
-        String resp = scanner.nextLine().trim().toLowerCase();
+        String resp = Teclado.lerLinha().trim().toLowerCase();
         return resp.equals("s") || resp.equals("sim");
     }
     
     public void mensagemSucesso(String operacao) {
-        System.out.println("\n✓ " + operacao + " realizada com sucesso!");
+        System.out.println("\n[OK] " + operacao + " com sucesso!");
     }
     
     public void mensagemErro(String mensagem) {
-        System.out.println("\n✗ Erro: " + mensagem);
+        System.out.println("\n[ERRO] " + mensagem);
     }
     
     public int lerOpcaoMenu() {
         System.out.print("\nOpção: ");
         try {
-            String input = scanner.nextLine().trim();
+            String input = Teclado.lerLinha().trim();
             if (input.isEmpty()) return -1;
             return Integer.parseInt(input);
         } catch (NumberFormatException e) {
@@ -146,6 +155,6 @@ public class VisaoCurso {
     
     public String lerOpcaoTexto() {
         System.out.print("\nOpção: ");
-        return scanner.nextLine().trim().toUpperCase();
+        return Teclado.lerLinha().trim().toUpperCase();
     }
 }

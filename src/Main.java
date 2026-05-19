@@ -1,4 +1,4 @@
-import java.util.Scanner;
+import auxiliares.Teclado;
 import visao.MenuUsuarios;
 import visao.ControleCurso;
 import entidades.Usuario;
@@ -7,7 +7,6 @@ import visao.ControleInscricao;
 public class Main {
     public static void main(String[] args) {
         try {
-            Scanner console = new Scanner(System.in);
             MenuUsuarios menuUsuarios = new MenuUsuarios();
             ControleCurso controleCurso = new ControleCurso();
             ControleInscricao controleInscricao = new ControleInscricao();
@@ -31,7 +30,7 @@ public class Main {
                 System.out.println("(C) Minhas inscrições");
                 System.out.println("\n(S) Sair");
                 System.out.print("\nOpção: ");
-                op = console.nextLine().trim().toUpperCase();
+                op = Teclado.lerLinha().trim().toUpperCase();
 
                 switch (op) {
                     case "A":
