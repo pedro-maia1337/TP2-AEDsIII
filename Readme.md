@@ -44,19 +44,27 @@ Foram mantidas as classes do TP1 com a adição de novas estruturas para lidar c
 
 
 1.  **Busca de Curso por NanoID**
+    
     ![Busca NanoID](docs/buscaNanoId.png)
+    
     *Tela exibindo os dados de um curso retornado após a busca pelo seu código exclusivo.*
 
 2.  **Lista de Cursos e Paginação**
+    
     ![Paginacao](docs/paginacao.png)
+    
     *Listagem de cursos ordenada por data de início, com paginação funcional.*
 
 3.  **Gestão das Próprias Inscrições**
+    
     ![Minhas Inscricoes](docs/minhasInscricoes.png)
+    
     *Visão de um curso em que o usuário está matriculado, com a opção ativa para "Cancelar minha inscrição no curso".*
 
 4.  **Gestão de Inscritos e Exportação CSV**
+    
     ![Exportar CSV](docs/exportarCsv.png)
+    
     *Visão do criador do curso, listando os alunos matriculados e exportando o arquivo `inscritos_[NanoID].csv`.*
 
 ---
